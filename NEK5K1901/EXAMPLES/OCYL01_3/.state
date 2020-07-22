@@ -1,0 +1,9 @@
+NEK_SOURCE_ROOT=/cfs/klemming/nobackup/m/miguelza/z2020_2/REPOSITORY/TARs/Nek5000
+FC=ftn -J./ 
+FFLAGS=-DPLEPP -Wno-argument-mismatch
+FCPP=-cpp
+FR8=-fdefault-real-8 -fdefault-double-8
+FF77=-std=legacy
+CC=cc
+CFLAGS=-D_Float128=__float128
+PPLIST= MPI UNDERSCORE GLOBAL_LONG_LONG TIMER

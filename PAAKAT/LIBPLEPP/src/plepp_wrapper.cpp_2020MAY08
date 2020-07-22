@@ -1,0 +1,83 @@
+//#include "commdom.hpp"
+#include "plepp.hpp"
+
+static CommDom*             CD = NULL;
+static Nek5KCoupling *coupling = NULL;
+
+//=======================================================================||===//
+extern "C"
+{
+
+  void plepp_init_externally_(void* ptr)
+  {
+    assert(ptr);
+    CD = (CommDom*) ptr;
+
+    int size = CD[0].get_mpi_commij_size();
+    std::cout<<" [plepp_init_externally] size:" << size <<" \n";
+
+  }
+
+
+  void plepp_set_externally_(void* ptr, 
+		             const char* ftype,  int* ntype, 
+			     const char* fnamei, int* nnamei, 
+                             const char* fnamej, int* nnamej,
+			     int*        fdim) 
+  {
+    assert(ptr);
+/* 
+    std::cout<<"  ftype:'"<< ftype  <<"' "<<   ntype[0] <<" ";
+    std::cout<<" fnamei:'"<< fnamei <<"' "<<  nnamei[0] <<" ";
+    std::cout<<" fnamej:'"<< fnamej <<"' "<<  nnamej[0] <<" ";
+    std::cout<<"   fdim:" << fdim[0] <<" " ;
+    std::cout<<" \n";
+*/
+    std::string namej( String_f2c(fnamej, nnamej[0]) ); // El order de namej, namei da segmentation!! 
+    std::string namei( String_f2c(fnamei, nnamei[0]) );
+    std::string  type( String_f2c( ftype,  ntype[0]) );
+    int dim = fdim[0];
+
+    coupling = new Nek5KCoupling(type, namei, namej, dim);   
+    MPI_Comm lcomm = coupling->Restart(ptr, type, namei, namej);  
+
+  }
+
+
+}
+
+
+/* 
+//=======================================================================||===//
+extern "C"
+{
+ 
+  void plepp_locator_get_pointer_(void* ptr)
+  {
+    ptr = ptr_commdom;
+  }
+
+
+  void plepp_locator_destroy_(void* ptr)
+  {
+    assert(ptr);
+
+    CommDom* ptr_plepp = (CommDom*) ptr;
+    ptr_plepp->locator_destroy();
+
+  }
+
+
+  void plepp_locator_create2_(void* ptr, int* fcommi, int* fcommij, double* tol, int* element_type)
+  {
+    MPI_Comm commi  = MPI_Comm_f2c( fcommi [0]);
+    MPI_Comm commij = MPI_Comm_f2c( fcommij[0]);
+
+    assert(ptr);
+    CommDom* ptr_plepp = (CommDom*) ptr;
+    ptr_plepp->locator_create2(commi, commij, tol[0], element_type[0]);
+
+  }
+
+}
+*/ 

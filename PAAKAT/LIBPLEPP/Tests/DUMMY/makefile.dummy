@@ -1,0 +1,36 @@
+
+LIB=./libCOMMDOM.a   
+
+#HERE=$(PWD)
+HERE=$(CURDIR) 
+
+.PHONY: default
+
+default : clean removelib compilelib 
+
+
+clean :
+	@rm -rf includes.* libs.* 
+	@rm -rf CMakeFiles CMakeCache.txt Makefile cmake_install.cmake CTestTestfile.cmake Testing  
+	@rm -rf *.x *.dat *.mod $(LIB)    
+
+
+compilelib : removelib clean 
+	@cmake . -DCMAKE_Fortran_COMPILER=$(FC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_C_COMPILER=$(CC) -DPLEPP_ROOT=$(PLEPP_ROOT)   
+	@make --no-print-directory  
+
+
+getincludesandlibs :
+	@mpiexec -n 1 python getIncludeAndLibs.py -F iam_alya.x   
+
+
+removelib : 
+ifneq ("$(wildcard $(LIB))","")
+	@rm $(LIB)
+endif
+
+
+#testlib :  compilelib    
+#	@ctest -VV .
+
+

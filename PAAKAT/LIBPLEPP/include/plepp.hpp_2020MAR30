@@ -1,0 +1,461 @@
+/*
+  2019DIC02. KTH, STOCKHOLM, SWEDEN. Migue Zavala 
+  FROM   : /home/bsc21/bsc21704/z2019_2/REPOSITORY/HEMELB02_01/ToUCL02_01/HEMELB/EXAMPLES/CPLNG03_1
+*/
+
+#ifndef INSITU_COMMDOM_H
+#define INSITU_COMMDOM_H
+
+#include "commdom.hpp"
+#include <map>
+
+//--------------------------------------------------------------------------||--//
+int n_node = 4; // tetras:4, tria:3 
+
+void
+propi2propj(
+            std::vector<double>  props_i, 
+            std::vector<int>     vertices, 
+            int                  n_dist_j, 
+            std::vector<int>     elemts_i, 
+            std::vector<double>  tetracoords_j, 
+            std::vector<double> &props_j 
+           )
+{
+  int    ii, ielem;
+  int      vertices_i[n_node];
+  double vol_coords_j[n_node];
+  double       prop_j[n_node];
+
+  if(n_dist_j > 0)
+  {
+    for(int ii=0; ii<n_dist_j; ii++ )
+    {
+      ielem = elemts_i[ii] - 1; //  <- Fortran style ?? 
+      for(int jj=0; jj<n_node; jj++)   vertices_i[jj]  =      vertices[n_node*ielem + jj] - 1; // <- Fortran style -> C style !!  
+      for(int jj=0; jj<n_node; jj++) vol_coords_j[jj]  = tetracoords_j[n_node*ii    + jj];
+      for(int jj=0; jj<n_node; jj++)       prop_j[jj]  =       props_i[ vertices_i[jj]  ];
+//for(auto x:prop_j) std::cout<< x <<" ";  
+      props_j[ii] = 0.0;
+      for(int jj=0; jj<n_node; jj++)      props_j[ii] += prop_j[jj] * vol_coords_j[jj];
+//std::cout<< props_j[ii] <<" ";  
+    }
+  }
+}
+
+
+//--------------------------------------------------------------------------||--//
+class Coupling 
+{
+  public:
+
+  Coupling(std::string type, std::string namei, std::string namej) 
+  {
+    IAM     =  type;  
+    NAMEi   =  namei; 
+    NAMEj   =  namej; 
+
+    global_comm = MPI_COMM_WORLD; 
+     local_comm = MPI_COMM_NULL;
+         commij = MPI_COMM_NULL;
+  }
+
+
+  virtual ~Coupling() 
+  {
+  }
+
+
+  MPI_Comm Init() 
+  {
+    CD = CommDom();
+    CD.init(); 
+    CD.set_app_type(IAM); 
+    CD.set_world_comm( global_comm ); 
+    CD.set_app_name(NAMEi); 
+
+    local_comm = CD.set_mpi_comms();
+    commij     = CD.get_mpi_commij(NAMEj); 
+
+    MPI_Comm_rank(local_comm, &local_rank);
+
+    return local_comm ;  
+  }
+
+
+  void SimulationEnd()
+  {
+    sendrecv_string("END!!") ;
+  }
+
+
+  void SimulationInit()
+  {
+    sendrecv_string("INIT!!") ; 
+  }
+
+
+  void SimulationSetTotalTimeSteps(int nTimeSteps)
+  {
+    n_time_steps[0] = nTimeSteps;
+    sendrecv_int(n_time_steps, 1, NULL, 0);
+  }
+
+
+  double SimulationDoTimeStep()  
+  {
+    double recv[1]  = { -1 };
+    double dummy[1] = { -1 }; 
+    sendrecv_double(dummy, 0, recv, 1, 1);
+    return recv[0];  
+  }
+
+
+  void SimulationLocalPropertyOutputWrite(double meanPressure, int timestepNumber)
+  {
+  //double send[2]  = { meanPressure, timestepNumber }; 
+    double send[2];
+    send[0] = meanPressure; 
+    send[1] =timestepNumber; 
+    sendrecv_double(send, 2, NULL, 0);  
+  }
+
+
+  void sendrecv_int(int* send, int n_send, int* recv, int n_recv, int print=0)   
+  {
+    assert( commij ); 
+    assert( local_comm ); 
+
+    CD.__mpi_sendrecv_int__(send, n_send, recv, n_recv, local_comm, commij); 
+    MPI_Bcast(recv, n_recv, MPI_INT, 0, local_comm);
+
+    if(!local_rank && print)
+    std::cout<<" '"<< NAMEi <<"."<< local_rank+1 <<"'"<<
+               " Send:'"    << send[0]           <<"'"<<
+               " Recv:'"    << recv[0]           <<"' \n";
+  }
+
+
+  void sendrecv_double(double* send, int n_send, double* recv, int n_recv, int print=0)
+  {
+    assert( commij );
+    assert( local_comm );
+
+    CD.__mpi_sendrecv_real__(send, n_send, recv, n_recv, local_comm, commij);
+    MPI_Bcast(recv, n_recv, MPI_INT, 0, local_comm);
+
+    if(!local_rank && print)
+    std::cout<<" '"<< NAMEi <<"."<< local_rank+1 <<"'"<<
+               " Send:'"    << send[0]           <<"'"<<
+               " Recv:'"    << recv[0]           <<"' \n";
+  }
+
+
+  std::string sendrecv_string(std::string csend, int print=0) 
+  {
+    // Send|Recv 'int'  
+  //int send[1] = { csend.size() };  
+    int recv[1] = { -1 };
+    int send[1]; // = { csend.size() };
+    send[0] = csend.size(); 
+
+    sendrecv_int(send, 1, recv, 1);  
+
+    // Send|Recv 'string' 
+    std::vector<char> aux_send( csend.begin(), csend.end() );
+    std::vector<char> aux_recv( recv[0], '?' );
+
+    CD.__mpi_sendrecv_char__(aux_send.data(), aux_send.size(),
+                             aux_recv.data(), aux_recv.size(),
+                             local_comm, commij);
+    MPI_Bcast(aux_recv.data(), aux_recv.size(), MPI_CHAR, 0, local_comm);
+
+    if(!local_rank && print)
+    std::cout<<" '"<< NAMEi <<"."<< local_rank+1 <<"'"<<
+               " Send:'"    << aux_send.data()   <<"'"<<
+               " Recv:'"    << aux_recv.data()   <<"' \n";
+
+    return std::string(aux_recv.data());  
+  }
+
+
+  protected :
+    std::map<std::string,MPI_Comm>            Commij;
+    std::map<std::string,MPI_Comm>::iterator  It;
+
+    MPI_Comm       commij; 
+    MPI_Comm   local_comm; 
+    MPI_Comm  global_comm; 
+
+    string IAM   ; 
+    string NAMEi ;
+    string NAMEj ;  
+
+    CommDom  CD;  
+
+    int local_rank ; 
+    int n_time_steps[1] ;
+
+}; // Coupling     
+
+
+
+//--------------------------------------------------------------------------||--//
+class Locatization : public Coupling 
+{
+  public : 
+ ~Locatization(){};
+
+  Locatization(std::string type, std::string namei, std::string namej, int dim) : Coupling(type, namei, namej)
+  {
+    DIM = dim; 
+  }
+
+
+  void CreateMesh(vector<double> points, vector<int> connectivity, int type, int nvertices)
+  {
+    vector<int> types(nvertices, -1); 
+    this->CreateMesh(points, connectivity, types);
+    types.clear();  
+  }
+
+
+  void CreateMesh(vector<double> points, vector<int> connectivity, vector<int> types)
+  {
+    assert(commij);
+    assert(commij != MPI_COMM_NULL);  
+    assert(local_comm);
+
+    vector<double> dummy(types.size(), -1); 
+
+    CD.locator_create2(local_comm, commij, 1e-3, 4);     // 4=tetras, 6=hexas 
+/* 
+    MPI_Barrier(global_comm); 
+    std::cout<<" \n"; 
+*/
+    int             n_elements_i =  types.size();        // = 0;
+    int*       vertex_type_i_ptr =  types.data();        // = NULL;
+    int*       _vertex_num_i_ptr =  connectivity.data(); // = NULL;
+
+    int             n_vertices_i =  points.size() / DIM; // = 0;
+    double* _vertex_coords_i_ptr =  points.data();       // = NULL;
+
+    int            _n_vertices_j =  n_vertices_i;        // = 0;
+    double*  vertex_coords_j_ptr = _vertex_coords_i_ptr; // = NULL;
+
+    int                DIM_PROPS =  1; //0; 
+    double*   vertex_props_j_ptr =  dummy.data(); //NULL; 
+/*
+    std::cout<<"\t[CreateMesh]"
+	     <<" nPts:"<< n_vertices_i  
+             <<" nCells:"<< n_elements_i
+	     <<" Dim:" << DIM  
+             <<" \n";
+*/ 
+
+    CheckInput(n_vertices_i,
+               n_elements_i,
+              _vertex_coords_i_ptr,          // [x1,y1,z1, x2,y2,z2, ..., xN,yN,zN]
+              _vertex_num_i_ptr,
+               vertex_type_i_ptr,
+              _n_vertices_j,
+               vertex_coords_j_ptr, DIM,
+               vertex_props_j_ptr, DIM_PROPS, 0); 
+
+
+/* 
+for(int i=0; i<connectivity.size(); i++) 
+{
+  int id = connectivity[i] -1; 
+  double *pt = &points[ id ]; 
+
+  std::cout<<" "<< i <<" "<< id ;
+  for(int j=id; j<id+DIM; j++) std::cout<<" "<< pt[j];  
+  std::cout<<" \n"; 
+}
+*/
+/* 
+    CD.locator_set_mesh(n_vertices_i,
+                        n_elements_i,
+                        _vertex_coords_i_ptr,          // [x1,y1,z1, x2,y2,z2, ..., xN,yN,zN]
+                        _vertex_num_i_ptr,               
+                        _n_vertices_j,
+                        vertex_coords_j_ptr);  
+*/
+/*
+CommDom::locator_set_mesh(
+                          int         n_vertices_i,
+                          int         n_elements_i,
+                          REAL*       vertex_coords_i, //double*     vertex_coords_i, 
+                          INTEGER*    vertex_num_i,    //int*        vertex_num_i, 
+                          int         n_vertices_j,
+                          REAL*       vertex_coords_j  //double*     vertex_coords_j
+                          )
+*/ 
+//  /*
+    CD.locator_set_cs_mesh(n_vertices_i,
+                           n_elements_i,
+                          _vertex_coords_i_ptr,          // [x1,y1,z1, x2,y2,z2, ..., xN,yN,zN]
+                          _vertex_num_i_ptr,               
+                           vertex_type_i_ptr,
+                          _n_vertices_j,
+                           vertex_coords_j_ptr, DIM, 
+                           vertex_props_j_ptr, DIM_PROPS); 
+// */
+/* 
+    //CD.save_dist_coords(0, local_comm); // 'dist_props_j' saved 
+
+    vertex_num_i    = connectivity; 
+    vertex_coords_i = points;   
+
+    // ToSend     
+    n_send = CD.get_n_dist_points();
+    dist_locations_i = vector<int   >(n_send            ,       -1); // Touched Local Elements 
+    dist_coords_j    = vector<double>(n_send * DIM      , HUGE_VAL);
+    dist_props_j     = vector<double>(n_send * DIM_PROPS, HUGE_VAL);  
+    CD.__locator_get_dist_locations__( dist_locations_i.data() );
+    CD.__locator_get_dist_coords__(       dist_coords_j.data() );
+    CD.__locator_get_dist_props__(         dist_props_j.data() ); 
+
+    // ToRecv   
+    n_recv = CD.get_n_interior();
+    interior_list_j = vector<int>(n_recv, -1);
+    CD.__locator_get_interior_list__( interior_list_j.data() ); // Touched Local Points 
+
+    dummy.clear();  
+*/
+  }
+
+
+  void CheckInput(int      n_vertices_i,             //  points.size() / DIM; 
+                  int      n_elements_i,             //  types.size() 
+                  double* _vertex_coords_i_ptr,      //  points.data() 
+                  int*    _vertex_num_i_ptr,         //  connectivity.data() 
+                  int*     vertex_type_i_ptr,        //  types.data()  
+                  int     _n_vertices_j,             //  n_vertices_i 
+                  double*  vertex_coords_j_ptr,      // _vertex_coords_i_ptr 
+		  int      DIM,  
+                  double*  vertex_props_j_ptr,       //  dummy.data()  
+		  int      DIM_PROPS,                // 
+		  int print = 1 
+		 )
+  {
+if(print) 
+{
+    std::cout<<" \n";
+
+    std::cout<<"\t[CreateMesh]"
+             <<" nPts:"<< n_vertices_i
+             <<" nCells:"<< n_elements_i
+             <<" Dim:" << DIM
+             <<" \n";
+
+    int cell_size = 3;  
+    for(int i=0,k=0; i<n_elements_i; i++)  
+    {
+      int t = vertex_type_i_ptr[i]; 
+      std::cout<<" ielem:"<< i <<" type:"<< t ; 
+
+      std::cout<<" elem:[";
+      for(int j=0; j<cell_size; j++, k++)
+      {
+        int icell = _vertex_num_i_ptr[k] - 1; 
+        std::cout<< icell <<":";
+
+        double *pt = _vertex_coords_i_ptr + icell * DIM;    
+        std::cout<<"(";
+        for(int l=0; l<DIM; l++) std::cout<<" "<< pt[l]; 
+        std::cout<<" ) ";
+
+      }
+      std::cout<<"] \n"; 
+    } 
+
+    std::cout<<" \n";
+    MPI_Barrier(global_comm);
+
+} // if 
+  }
+
+
+  vector<int> GetTouchedElements()
+  {
+    return dist_locations_i;     
+  }
+
+
+  vector<double> GetFarPointsFound() 
+  {
+    return dist_coords_j; 
+  } 
+
+
+  void Exchange(std::vector<double> var_ij, std::vector<double>& array)
+  {
+    assert(vertex_coords_i.size()/DIM == array.size()); 
+ 
+    std::vector<double> var_ji = Exchange(var_ij); 
+    for(int i=0; i<var_ji.size(); i++) array[ interior_list_j[i] ] = var_ji[i]; 
+  }
+
+
+  std::vector<double> Exchange(std::vector<double> var_ij)  
+  {
+//std::cout<< var_ij.size() <<"\n";
+    assert(n_send = var_ij.size());   
+    
+    std::vector<double> var_ji(n_recv, HUGE_VAL); 
+
+    std::cout<<"\t[Exchange] ..."; 
+    CD.__locator_exchange_double_scalar__(var_ij.data(), var_ji.data(), 1);
+    std::cout<<" ok!\n"; 
+
+    //for(auto x:var_ji) std::cout<< x <<" ";
+    return var_ji; 
+  }
+
+  protected :
+  int    DIM = -1; 
+
+  vector<int>    vertex_num_i;  
+  vector<double> vertex_coords_i;   
+  vector<double> shapef_j; 
+
+  int n_send = -1;
+  vector<int>    dist_locations_i; 
+  vector<double>    dist_coords_j; 
+  vector<double>     dist_props_j; 
+ 
+  int n_recv = -1;
+  vector<int> interior_list_j; 
+//  vector<double> var_ij; 
+
+}; // Locatization
+
+
+//--------------------------------------------------------------------------||--//
+class Nek5KCoupling : public Locatization 
+{
+  public :
+ ~Nek5KCoupling(){};
+
+  Nek5KCoupling(std::string type, std::string namei, std::string namej, int dim) : Locatization(type, namei, namej, dim)
+  {
+
+  }
+
+}; // Nek5KCoupling
+
+
+//--------------------------------------------------------------------------||--//
+
+
+
+
+//--------------------------------------------------------------------------||--//
+#endif
+/*
+  SEE : 
+    /home/bsc21/bsc21704/z2019_2/REPOSITORY/ALYA/ALYA_2019JUL12/Thirdparties/libple/PLEPP/Wrappers/Cpp
+
+*/ 
