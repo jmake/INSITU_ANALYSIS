@@ -15,9 +15,10 @@ clean :
 	@rm -rf *.x *.dat *.mod $(LIB)    
 
 
-compilelib : removelib clean 
-	@cmake . -DCMAKE_Fortran_COMPILER=$(FC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_C_COMPILER=$(CC) -DParaView_DIR=$(ROOT_CATALYST) -DPLEPP_ROOT=$(PLEPP_ROOT)   
-	@make --no-print-directory  
+compilelib : removelib clean
+	@find $(ROOT_CATALYST)  | grep ParaViewConfig.cmake  | wc -l   # [1] 
+	@cmake . -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_C_COMPILER=$(CC) -DParaView_DIR=$(ROOT_CATALYST)  
+	@make --no-print-directory # [2] 
 
 
 getincludesandlibs :
@@ -34,3 +35,11 @@ endif
 #	@ctest -VV .
 
 
+## NOTES :
+## 
+## [1] -DParaView_DIR=$ROOT_CATALYST
+##     Where is'' ??  -> find . | grep ParaViewConfig.cmake 
+## 
+## [2] 
+##    [100%] Linking CXX executable test_cxx.x
+##    [100%] Built target test_cxx.x  

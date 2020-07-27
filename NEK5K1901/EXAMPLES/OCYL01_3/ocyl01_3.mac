@@ -1,39 +1,8 @@
-#!/bin/bash -l
-#SBATCH -A 
-#SBATCH -J myjob
-#SBATCH -e output.err   
-#SBATCH -o output.out
-
-#SBATCH -t 00:05:00
-#SBATCH -N 1  
-#SBATCH -n 16    
-#SBATCH --exclusive
-
-## sbatch <   
-## watch squeue -u miguelza
-## scancel   
-## salloc --nodes=1 -t 3:00:00 -A 2020-5-312   
-## salloc --nodes=8 -t 0:30:00 -A 2020-5-312   
-
-
 ## 0.0. PATHS   
 python -c "import os; os.system('clear') "
 ROOT=
 
 ## 0.0. MODULES  
-PARAVIEW563()   
-{
-  module swap PrgEnv-cray PrgEnv-gnu
-##module switch PrgEnv-cray/6.0.5 PrgEnv-gnu
-  module load cdt/19.06
-  module load mesa/18.3.3-gnu
-  module load cray-python/3.6.5.7
-  module load paraview/5.6.3-gnu
-
-  gcc --version
-  PYTHON=$(which pvpython);
-  echo "PYTHON:", $PYTHON 
-}
 
 
 ##
@@ -43,10 +12,10 @@ PAAKAT_COMPILE()
   PLEPP_PATH=$PAAKAT_PATH/LIBPLEPP
   CASE_PATH=$PAAKAT_PATH/EXAMPLES/PY/MPMD02_1
 
-  export FC=ftn && export CC=cc && export CXX=CC
+  export FC=mpif90-openmpi-gcc5 && export CC=mpicc-openmpi-gcc5 && export CXX=mpicxx-openmpi-gcc5
   rm ${LIB} *.mod   
   rm ${CASE_PATH}/${LIB} . 
-  make --no-print-directory -C ${CASE_PATH} -f makefile.dummy PLEPP_ROOT=${PLEPP_PATH} ROOT_CATALYST=$ROOT_CATALYST compilelib 
+  make --no-print-directory -C ${CASE_PATH} -f makefile.dummy PLEPP_ROOT=${PLEPP_PATH} ROOT_CATALYST=$ROOT_CATALYST compilelib  
   cp ${CASE_PATH}/${LIB} . 
   cp ${CASE_PATH}/*.mod . 
 
@@ -63,7 +32,7 @@ NEK5K_SOURCES()
   SOURCES_PATH=../OCYL00_1
 
   ## USE : rm -rf !('SIZE'|'ocyl.map'|'ocyl.rea'|'ocyl.usr'|'ocyl2.map'|'ocyl2.rea'|'ocyl2.usr')
-  find -type l -delete
+  find . -type l -delete
   FILES="SIZE  ocyl.map  ocyl.rea  ocyl.usr  ocyl2.map  ocyl2.rea  ocyl2.usr pipe.py mpmd.py"
   for f in $FILES;  do ln -s $SOURCES_PATH/$f ; done 
 }
@@ -102,9 +71,9 @@ NEK5K_PAAKAT()
 NEK5K_COMPILER() 
 {
   export CASE="$CASEA_NAME"
-  export FC="ftn -J./ "
+  export FC="mpif90-openmpi-gcc5 -J./ "
   export FFLAGS+="-DPLEPP -Wno-argument-mismatch"
-  export CC="cc"
+  export CC="mpicc-openmpi-gcc5"
   export CFLAGS="-D_Float128=__float128"
   export NEK_SOURCE_ROOT="${NEK_PATH}"
 
@@ -123,23 +92,28 @@ NEK5K_RUNNER_SPMD()
   echo $CASEA_NAME  >   SESSION.NAME
   echo $HERE        >>  SESSION.NAME
 
-  mpiexec -n 1 $PYTHON ${HERE}/mpmd.py $HERE/nek5000   
-  #more mpmd.conf
-  time srun --multi-prog  mpmd.conf 
+  #mpiexec -n 1 $PYTHON ${HERE}/mpmd.py $HERE/nek5000   
+
+  mpirun-openmpi-gcc5 --oversubscribe \
+  -np 5 ./nek5000 --namei Y : \
+  -np 6 ./nek5000 --namei X : \
+  -np 7 ./nek5000 --namei Z 
+ 
 }
 
 
 ### 
-HERE=${ROOT}/INSITU_ANALYSIS/NEK5K1901/EXAMPLES/OCYL01_3
+HERE=$PWD 
 PAAKAT_PATH=${HERE}/../../../PAAKAT
 NEK_PATH=${HERE}/../../../NEK5K1901/SRC 
 CASEA_NAME=ocyl
 
-# [1]
-ROOT_CATALYST=/pdc/vol/paraview/5.6.3/GNU/lib/
 
-PARAVIEW563        # [1] 
-PAAKAT_COMPILE     # [2] 
+# [1]
+export ROOT_CATALYST=/Users/poderozita/z2019_1/REPOSITORY/PV560_1
+PYTHON=python 
+
+#PAAKAT_COMPILE     # [2] 
 NEK5K_SOURCES      # [3]
 NEK5K_PAAKAT       # [4]  
 NEK5K_COMPILER     # [5]

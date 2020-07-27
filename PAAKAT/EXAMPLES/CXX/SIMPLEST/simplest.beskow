@@ -1,0 +1,95 @@
+#!/bin/bash -l
+#SBATCH -A 2019-3-337 
+#SBATCH -J myjob
+#SBATCH -e output.err   
+#SBATCH -o output.out
+
+#SBATCH -t 00:05:00
+#SBATCH -N 4  
+#SBATCH -n 128   
+#SBATCH --exclusive
+
+## SNIC 2019/3-337 
+
+## sbatch <   
+## watch squeue -u miguelza
+## scancel 
+## salloc --nodes=1 -t 3:00:00 -A 2020-5-312 
+## salloc --nodes=8 -t 0:30:00 -A 2020-5-312 
+
+## 0.0  
+#python -c "import os; os.system('clear') "
+ROOT=/cfs/klemming/nobackup/m/miguelza/
+
+HPCTK_PATH=$ROOT/REPOSITORY/HPCTK/SPACK/SPACK01_1/opt/spack/cray-cnl7-haswell/gcc-7.3.0/hpctoolkit-2020.03.01-c4pbztpayconskijwaoupb4lqyqdnetv/bin
+export PATH=$PATH:$HPCTK_PATH
+
+
+GCC()
+{
+  python -c "import os; os.system('clear')"
+
+  module swap PrgEnv-cray PrgEnv-gnu
+  #module delete gcc
+  #module load gcc/7.3.0 # :(
+
+  gcc --version
+}
+
+
+PARAVIEW563()   
+{
+  python -c "import os; os.system('clear')"
+
+  module switch PrgEnv-cray/6.0.5 PrgEnv-gnu
+  module load cdt/19.06
+  module load mesa/18.3.3-gnu
+  module load cray-python/3.6.5.7
+  module load paraview/5.6.3-gnu
+
+  #module delete gcc
+  #module load gcc/7.3.0 # 8.3.0 -> 7.3.0 :(
+
+  gcc --version
+
+  PYTHON=$(which pvpython);
+  echo "PYTHON:", $PYTHON 
+}
+
+
+CLEAN() 
+{
+  make -f makefile.dummy clean 
+  find . -type l -delete
+
+  echo "cleaned..."
+  exit 
+}
+
+
+SOURCES() 
+{
+  find . -type l -delete
+  ln -s ../../../SRCs/E01_SIMPLEST/* .
+  ln -s ../../../SRCs/vtktools.hpp 
+}
+
+
+## 
+CLEAN
+SOURCES
+
+GCC ## PARAVIEW563 | GCC  
+export FC=ftn 
+export CC=cc
+export CXX=CC 
+
+ROOT=/cfs/klemming/nobackup/m/miguelza/
+export ROOT_CATALYST=$ROOT/z2019_3/REPOSITORY/PV/PV560_5
+
+## 
+##make -f makefile.dummy clean 
+make -f makefile.dummy compilelib CXX=$CXX CC=$CC ROOT_CATALYST=$ROOT_CATALYST
+
+
+

@@ -1,0 +1,43 @@
+## 
+NORD3()
+{
+  python -c "import os; os.system('clear')"
+
+  module purge
+  module load CMAKE/3.7.1
+  module load openmpi/1.8.1 # default
+  module load gcc/7.2.0
+  gcc --version
+}
+
+CLEAN() 
+{
+  make -f makefile.dummy clean 
+  find . -type l -delete
+  exit 
+}
+
+
+SOURCES() 
+{
+  find . -type l -delete
+  ln -s ../../../SRCs/E01_SIMPLEST/* .
+  ln -s ../../../SRCs/vtktools.hpp 
+}
+
+
+## 
+python -c "import os; os.system('clear')"
+CLEAN
+SOURCES
+
+NORD3
+export FC=mpif90
+export CC=mpicc
+export CXX=mpicxx
+export ROOT_CATALYST=/home/bsc21/bsc21704/z2019_2/REPOSITORY/PV/PV560_5/
+
+## 
+##make -f makefile.dummy clean 
+make -f makefile.dummy compilelib CXX=$CXX CC=$CC ROOT_CATALYST=$ROOT_CATALYST  
+

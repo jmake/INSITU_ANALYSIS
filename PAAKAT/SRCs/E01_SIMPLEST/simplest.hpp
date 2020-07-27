@@ -7,6 +7,7 @@
 //#include <vtkXMLMultiBlockDataReader.h>
 
 #include "vtktools.hpp"
+#include "insitu.hpp"  
 
 /*
 vtkDataObject* VtmReader(std::string fname)

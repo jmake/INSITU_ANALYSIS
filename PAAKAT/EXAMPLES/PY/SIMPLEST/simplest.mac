@@ -1,0 +1,31 @@
+## 
+CLEAN() 
+{
+  make -f makefile.dummy clean 
+  find . -type l -delete
+  exit 
+}
+
+
+SOURCES() 
+{
+  find . -type l -delete
+  ln -s ../../../SRCs/E01_SIMPLEST/* .
+  ln -s ../../../SRCs/vtktools.hpp 
+}
+
+
+## 
+python -c "import os; os.system('clear')"
+CLEAN
+SOURCES
+
+export FC=mpif90-openmpi-gcc5
+export CC=mpicc-openmpi-gcc5 
+export CXX=mpicxx-openmpi-gcc5
+export ROOT_CATALYST=/Users/poderozita/z2019_1/REPOSITORY/PV560_1
+
+## 
+##make -f makefile.dummy clean 
+make -f makefile.dummy compilelib CXX=$CXX CC=$CC ROOT_CATALYST=$ROOT_CATALYST  
+

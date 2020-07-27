@@ -18,6 +18,14 @@
 #include "pipeline.hpp" // vtkCPVTKPipeline.cxx 
 //#include "vtktools.hpp" 
 
+#include <vtkCPProcessor.h>
+#include <vtkCPDataDescription.h>
+#include <vtkCPInputDataDescription.h>
+
+#ifdef WITH_PYTHON 
+#include <vtkCPPythonScriptPipeline.h> 
+#endif 
+
 // /* 
 template <class vtkGridType>
 void PWriter(vtkGridType* DataObject, std::string fname)
@@ -248,10 +256,18 @@ class InSituCpp
       }
     }
 
+#ifdef WITH_PYTHON 
+    // C++ pipeline 
+    vtkNew<vtkCPPythonScriptPipeline> pipeline; 
+    pipeline->Initialize("pipeline.py");   
+    Processor->AddPipeline(pipeline.GetPointer());
+#else 
     // C++ pipeline 
     vtkNew<vtkCPVTKPipeline> pipeline;
     pipeline->Initialize(outputFrequency, fileName);
     Processor->AddPipeline(pipeline.GetPointer());
+#endif
+
 
     Grid = new VtkGrid<vtkUnstructuredGrid>();
 
