@@ -1,0 +1,43 @@
+
+python -c "import os; os.system('clear')"
+
+cp SRCs/CMakeLists.txt .
+
+CMAKE()
+{
+  rm -rf cmake_install.cmake CMakeCache.txt CMakeFiles Makefile 
+  rm *Python*
+  rm *vtk*  
+
+  exit 
+  cp SRCs/vtkCollisionDetectionFilter.h .
+
+  cmake . \
+    -DCMAKE_C_COMPILER=mpicc \
+    -DCMAKE_CXX_COMPILER=mpicxx \
+    -DCMAKE_CXX_FLAGS=-Wno-narrowing \
+    -DParaView_DIR=$1 \
+
+  touch vtkXYZHierarchy  ## [1] pv5.6 NEEDS It   
+  make
+}
+
+## COMPILATION. [1]  
+ROOT_CATALYST=/Users/poderozita/z2019_1/REPOSITORY/PV560_1
+CMAKE $ROOT_CATALYST
+
+## TEST  
+$ROOT_CATALYST/bin/pvpython SRCs/test.py 
+
+
+## [1]
+##     [  9%] Python Wrapping - generating vtkXYZPythonInit.cxx
+##     make[2]: *** No rule to make target `vtkXYZHierarchy', needed by `vtkCollisionDetectionFilterPython.cxx'.  Stop.
+## 
+##   FOR SOME REASON 'vtkXYZHierarchy' is not generated  
+##   IN 'vim CMakeFiles//vtkXYZPythonD.dir/build.make'
+##   IT IS POSSIBLE TO SEE THAT :  
+##     vtkCollisionDetectionFilterPython.cxx: ${PATH_TO_PARAVIEW_560}/bin/vtkWrapPython-pv5.6  
+##     vtkCollisionDetectionFilterPython.cxx: SRCs/vtkCollisionDetectionFilter.h
+##     vtkCollisionDetectionFilterPython.cxx: vtkXYZPython..args
+##     vtkCollisionDetectionFilterPython.cxx: vtkXYZHierarchy
