@@ -1,0 +1,60 @@
+
+## 0.0  
+GCC()
+{
+  #python -c "import os; os.system('clear')"
+
+  module purge
+  module load GCC #ParaStationMPI  
+  #module load Intel 
+  module load ParaStationMPI
+  module load CMake
+
+  gcc --version
+  #PYTHON=$(which pvpython);
+  #echo "PYTHON:", $PYTHON 
+}
+
+
+PARAVIEW563()   
+{
+  python -c "import os; os.system('clear')"
+
+  gcc --version
+  PYTHON=$(which pvpython);
+  echo "PYTHON:", $PYTHON 
+}
+
+
+CLEAN() 
+{
+  make -f makefile.dummy clean
+  find . -type l -delete
+
+  echo "cleaned..."
+  exit
+}
+
+
+SOURCES() 
+{
+  find . -type l -delete
+  ln -s ../../../SRCs/E01_SIMPLEST/* .
+  ln -s ../../../SRCs/vtktools.hpp
+}
+
+## 
+CLEAN
+SOURCES
+
+GCC
+export FC=mpif90
+export CC=mpicc
+export CXX=mpicxx
+
+ROOT=/p/project/prcoe03/jmake/
+export ROOT_CATALYST=$ROOT/z2020_2/REPOSITORY/PV/DecafPV560/BUILD01_1
+
+
+## 
+##make -f makefile.dummy clean 
