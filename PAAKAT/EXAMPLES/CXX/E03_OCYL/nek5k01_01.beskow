@@ -1,0 +1,88 @@
+#!/bin/bash -l
+#SBATCH -A 2019-3-337 
+#SBATCH -J myjob
+#SBATCH -t 00:30:00
+#SBATCH --nodes=1 
+#SBATCH --ntasks-per-node=32
+#SBATCH -e output.err   
+#SBATCH -o output.out
+
+## SNIC 2019/3-337 
+
+## sbatch <   
+## watch squeue -u miguelza
+## scancel 
+## salloc --nodes=1 -t 1:00:00 -A 2019-3-337  
+
+## 0.0 
+ROOT=/cfs/klemming/nobackup/m/miguelza/z2019_3
+#readlink -f $ROOT/REPOSITORY/PAAKAT/2019AUG09/TESTS/PV560/CPP/NEK5K/E01_XmlVtm
+
+CATALYST_PATH=$ROOT/REPOSITORY/PV/PV560_5/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CATALYST_PATH
+
+## 0.1   
+SOURCES()
+{
+  find -type l -delete
+  ln -s ../../../../APPS/NEK5K/wrapper.cxx
+  ln -s ../../../../INCLUDE/*.hpp .
+}
+
+## 1.0 
+GCC()
+{
+  python -c "import os; os.system('clear')"
+
+  module swap PrgEnv-cray PrgEnv-gnu
+  module delete gcc
+  module load gcc/7.3.0 # :(  
+  #module load gcc/8.1.0 # :(  
+  #module load gcc/8.3.0 # :( 
+
+  #module load cdt
+  #module load cmake/3.14.5
+  #module load anaconda
+
+  gcc --version
+}
+
+## 2.0 
+COMPILER()
+{
+  rm -rf CMakeCache.txt CMakeTmp libPAAKAT.a nek5k01_01.x   
+  rm -rf CMakeFiles 
+
+  ## 1 
+  mpiexec -n 1 \
+  cmake . \
+    -DCMAKE_CXX_COMPILER=CC  \
+    -DCMAKE_CXX_FLAGS="-g -Wno-inconsistent-missing-override " \
+    -DParaView_DIR=$ROOT/REPOSITORY/PV/PV560_5 \
+    -DBoost_INCLUDE_DIR=$ROOT/REPOSITORY/TARs/boost_1_70_0 \
+
+
+  ## 2 
+  mpiexec -n 1 make PAAKAT  
+  #mpiexec -n 1 make 
+}
+
+## 3.0
+EXECUTE()
+{
+  if [ -f "$1" ]; then
+    echo "'$1' running ... "
+    mpiexec -n 1 nek5k01_01.x  
+    #mpiexec -n 2 nek5k01_01.x
+  else 
+    echo "'$1' no found!!"
+  fi
+}
+
+
+SOURCES 
+GCC
+COMPILER
+EXECUTE nek5k01_01.x  
+
+

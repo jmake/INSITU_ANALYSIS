@@ -1,0 +1,45 @@
+
+LIB=./libCOMMDOM.a   
+
+#HERE=$(PWD)
+HERE=$(CURDIR) 
+
+.PHONY: default
+
+default : clean removelib compilelib 
+
+
+clean :
+	@rm -rf includes.* libs.* 
+	@rm -rf CMakeFiles CMakeCache.txt Makefile cmake_install.cmake CTestTestfile.cmake Testing  
+	@rm -rf *.x *.dat *.mod $(LIB)    
+
+
+compilelib : removelib clean
+	@find $(ROOT_CATALYST)  | grep ParaViewConfig.cmake  | wc -l   # [1] 
+	@cmake . -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_C_COMPILER=$(CC) -DParaView_DIR=$(ROOT_CATALYST)  
+	@make --no-print-directory # [2] 
+
+
+getincludesandlibs :
+	@mpiexec -n 1 python3 getIncludeAndLibs.py -F iam_alya.x   
+
+
+removelib : 
+ifneq ("$(wildcard $(LIB))","")
+	@rm $(LIB)
+endif
+
+
+#testlib :  compilelib    
+#	@ctest -VV .
+
+
+## NOTES :
+## 
+## [1] -DParaView_DIR=$ROOT_CATALYST
+##     Where is'' ??  -> find . | grep ParaViewConfig.cmake 
+## 
+## [2] 
+##    [100%] Linking CXX executable test_cxx.x
+##    [100%] Built target test_cxx.x  

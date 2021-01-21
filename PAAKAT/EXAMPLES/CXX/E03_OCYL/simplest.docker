@@ -1,0 +1,35 @@
+CLEAN() 
+{
+  make -f makefile.dummy clean 
+  find . -type l -delete
+#  exit 
+}
+
+
+SOURCES() 
+{
+  find . -type l -delete
+  ln -s ../../../SRCs/E01_SIMPLEST/* .
+  ln -s ../../../SRCs/vtktools.hpp 
+}
+
+
+## 
+python3 -c "import os; os.system('clear')"
+CLEAN
+#SOURCES
+
+export FC=mpif90
+export CC=mpicc
+export CXX=mpicxx
+export ROOT_CATALYST=/DecafPV560/BUILD/
+
+## 
+##make -f makefile.dummy clean 
+make -f makefile.dummy compilelib CXX=$CXX CC=$CC ROOT_CATALYST=$ROOT_CATALYST  
+
+
+## DOCKER 
+## RUN apt-get -y install libboost-dev
+## RUN aptitude search boost
+
