@@ -144,7 +144,7 @@ class CylinderSurfaceAnalysis : public Analysis // vtktools.hpp
 
   void SaveZeros(std::string fname = "roots.dat")
   {
-#ifdef USE_BOOST 
+//#ifdef USE_BOOST 
     std::vector<double> X( Arrays[xname] ); 
     std::vector<double> Y( Arrays[yname] );  
     boost::math::barycentric_rational<double> b(X.data(), Y.data(), X.size());
@@ -154,7 +154,7 @@ class CylinderSurfaceAnalysis : public Analysis // vtktools.hpp
     myfile.open( fname.c_str() );
     for(int i=0;i<Roots.size();i++) myfile<< Roots[i] <<" "<< b(Roots[i]) <<" \n";
     myfile.close(); 
-#endif 
+//#endif 
   }
 
 

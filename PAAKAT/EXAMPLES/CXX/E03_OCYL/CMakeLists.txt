@@ -15,10 +15,8 @@ add_library(PAAKAT ${SRCs})
 
 
 ## Testing   
-## 01 
 set(exec01 nek5k01_01.x)
 add_executable(${exec01} nek5k01_01.f90)  
-set_property(TARGET ${exec01} PROPERTY LINKER_LANGUAGE CXX)
+set_property(TARGET ${exec01} PROPERTY LINKER_LANGUAGE Fortran)
 target_link_libraries(${exec01} PAAKAT ${LIBS})
-
 

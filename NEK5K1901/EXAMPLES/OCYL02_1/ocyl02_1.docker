@@ -1,0 +1,139 @@
+CLEAR()
+{
+  find . -type l -delete
+  rm lib* includes* 
+}
+
+
+##
+PAAKAT_COMPILE() 
+{
+  LIB=libPAAKAT.a
+  CASE_PATH=$PAAKAT_PATH/EXAMPLES/CXX/E03_OCYL/
+
+  rm ${CASE_PATH}/${LIB}  
+  make --no-print-directory -C ${CASE_PATH} -f makefile.dummy ROOT_CATALYST=$ROOT_CATALYST compilelib  
+  cp ${CASE_PATH}/${LIB} . 
+
+  make --no-print-directory -C ${CASE_PATH} -f makefile.dummy getincludesandlibs
+  cp ${CASE_PATH}/*.nek5k . 
+  #
+  #exit 
+}
+
+
+## 0.0. SOURCES 
+NEK5K_SOURCES()
+{
+  SOURCES_PATH=../OCYL00_1
+
+  ## USE : rm -rf !('SIZE'|'ocyl.map'|'ocyl.rea'|'ocyl.usr'|'ocyl2.map'|'ocyl2.rea'|'ocyl2.usr')
+  find . -type l -delete
+  FILES="SIZE  ocyl.map  ocyl.rea  ocyl.usr  ocyl2.map  ocyl2.rea  ocyl2.usr nek_in_situ.f paakat.f "
+  for f in $FILES;  do ln -s $SOURCES_PATH/$f ; done 
+}
+
+
+NEK5K_PAAKAT() 
+{
+  ## 1.0. SOME DEFINITIONS  
+  PAAKAT_FFILE=paakat
+
+  ## 1.0. 'makefile_usr.inc' file  
+  MAKEFILE_USR=makefile_usr.inc
+  rm $MAKEFILE_USR
+  printf "\$(OBJDIR)/${PAAKAT_FFILE}.o     :\$S/3rd_party/${PAAKAT_FFILE}.f;      @\$(FC)  -c \$(FL2) \$< -o \$@  \n" >> $MAKEFILE_USR
+
+  ## 1.0.
+  rm -rf Nek5000  
+  tar -xf ../../../TARs/Nek5000-19.0.tar.gz 
+  cp nek_in_situ.f Nek5000/core/3rd_party/ 
+  cp paakat.f      Nek5000/core/3rd_party/
+
+  ## 1.0. COMPILATION PARAMETERS  
+  LIB_PATH=./
+  export CATALYST_INCS=$(<${LIB_PATH}/includes.nek5k); #echo ${CATALYST_INCS}
+  export CATALYST_LIBS=$(<${LIB_PATH}/libs.nek5k); #echo $CATALYST_LIBS 
+  #  
+  export USR+="${PAAKAT_FFILE}.o"
+  export LDFLAGS="${CATALYST_LIBS}"
+}
+
+
+NEK5K_COMPILER() 
+{
+  export CASE="$CASEA_NAME"
+  export FC="mpif90 -J./ "
+  export FFLAGS+="-DPLEPP -Wno-argument-mismatch"
+  export CC="mpicc "
+  export CFLAGS="-D_Float128=__float128"
+  export NEK_SOURCE_ROOT="${NEK_PATH}"
+
+  rm nek5000 makefile
+  ##bash $NEK_PATH/bin/makenek clean
+  bash $NEK_PATH/bin/makenek ${CASEA_NAME}
+}
+
+
+NEK5K_RUNNER_SPMD()
+{
+  rm SESSION.NAME
+  echo $CASEA_NAME  >   SESSION.NAME
+  echo $HERE        >>  SESSION.NAME
+
+  time ./nek5000  
+}
+
+
+### 
+HERE=$PWD 
+PAAKAT_PATH=${HERE}/../../../PAAKAT
+NEK_PATH=${HERE}/Nek5000 
+CASEA_NAME=ocyl
+
+
+# [1]
+export FC=mpif90
+export CC=mpicc
+export CXX=mpicxx
+export ROOT_CATALYST=/DecafPV560/BUILD/
+
+PAAKAT_COMPILE     # [2] 
+NEK5K_SOURCES      # [3]
+NEK5K_PAAKAT       # [4]  
+NEK5K_COMPILER     # [5]
+NEK5K_RUNNER_SPMD  # [6]
+
+#CLEAR 
+
+## NOTES  
+## 
+## [1] 
+##    Paraview-Python compilation available in Beskow    
+## 
+## [2]
+##    These files are necessary to compilation 
+##      libPLEPP.a|mod_plepp.mod   Communication library  
+##      includes.nek5k|libs.nek5k  Includes|libraries as used by 'PAAKAT/EXAMPLES/PY/MPMD02_1/iam_alya.x' 
+## 
+## [3] 
+##    'Original' sources (FROM 'examples/ocyl/' )   
+##    and 'makefile_usr.inc'
+## 
+## 
+## [4]
+##    Add 'makefile_usr.inc' and 'paakat.f' 
+## 
+
+
+## [1] 
+## #############################################################
+## #                  Compilation successful!                  #
+## #############################################################
+##    text	   data	    bss	    dec	    hex	filename
+## 2984351	 979620	6808992	10772963	 a461e3	nek5000
+##
+## [2]
+## /opt/cray/pe/mpt/7.7.8/gni/mpich-crayclang/9.0/include/mpi.h +2237
+## error "You cannot define MPI; that name is reserved for the MPI namespace"
+##   

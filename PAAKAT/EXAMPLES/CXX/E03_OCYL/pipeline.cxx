@@ -93,14 +93,12 @@ int vtkCPVTKPipeline::CoProcess(vtkCPDataDescription* dataDescription)
   std::ostringstream o;
   o << std::setfill('0') << std::setw(6) << dataDescription->GetTimeStep();
 
-  double radius = 0.501; 
+  double radius = 0.51; 
   FindZeros findZeros = FindZeros( producer, GetCircle(radius,250), radius); // filter.hpp  
   findZeros.SaveZRS("findzeros" + o.str()         );
   findZeros.SavePRO("findzeros" + o.str(), "VORTY"); 
 //findZeros.SaveVTK("findzeros" + o.str()         ); 
 //findZeros.SavePRO("findzeros" + o.str(), "vtkValidPointMask");
-
-  //assert(dataDescription->GetTimeStep() < 3); 
 
   return 1;
 }
@@ -113,11 +111,3 @@ void vtkCPVTKPipeline::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FileName: " << this->FileName << "\n";
 }
 
-
-//----------------------------------------------------------------------------
-/*
-SEE : 
-    CxxVTKPipelineExample/vtkCPVTKPipeline.cxx   
-
-
-*/
