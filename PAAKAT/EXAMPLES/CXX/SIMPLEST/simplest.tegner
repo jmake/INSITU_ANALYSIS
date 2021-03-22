@@ -1,0 +1,64 @@
+## sbatch <   
+## watch squeue -u miguelza
+## scancel 
+## salloc --nodes=1 -t 4:00:00 -A 2020-5-312
+
+
+clear
+find . -type l -delete
+
+
+GCC()
+{ 
+  module purge
+  module load gcc/6.2.0
+  module load openmpi/2.0-gcc-6.2
+  module load cmake/3.5.1
+  
+  gcc --version
+}
+GCC
+
+#rm -rf *.*
+#find . -type l -delete
+#ln -s ORIGs/*.*  
+
+
+##
+FC=mpif90
+CXX=mpicxx
+
+
+## Where is'' ??  -> find . | grep ParaViewConfig.cmake 
+export ROOT=/cfs/klemming/nobackup/m/miguelza/
+ROOT_CATALYST=$ROOT/z2020_2/REPOSITORY/TINO/DecafPV560/FEB15_1/
+
+
+##
+CMAKE()
+{
+  rm -rf CMakeFiles CMakeCache.txt Makefile cmake_install.cmake *.x libPAAKAT.a
+
+  cmake . \
+  -DCMAKE_CXX_COMPILER=$CXX \
+  -DCMAKE_Fortran_COMPILER=$FC \
+  -DCMAKE_CXX_FLAGS="-g -Wno-inconsistent-missing-override" \
+  -DParaView_DIR=$ROOT_CATALYST
+
+  make --no-print-directory
+}
+
+##
+CMAKE
+exit
+
+mpirun -np 4 --oversubscribe testGetAreaVolume02_01.x
+
+#python3.6 readFile01_01.py  
+#grep PPoints readFile01_01.log 
+
+# 2020FEB15  
+#
+# FROM :
+#  /afs/pdc.kth.se/home/m/miguelza/z2020_2/REPOSITORY/INSITU_ANALYSIS/OCT23_1/ALYA_INSITU/Thirdparties/INSITU/PAAKAT/E02_SIMPLEST
+#
